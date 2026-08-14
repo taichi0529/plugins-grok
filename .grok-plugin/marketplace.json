@@ -1,0 +1,27 @@
+{
+  "name": "taichi0529",
+  "description": "Taichi's Grok plugins: issue-driven workflow and Obsidian daily notes.",
+  "owner": {
+    "name": "Taichi"
+  },
+  "plugins": [
+    {
+      "name": "workflow-grok",
+      "description": "PROGRESS.md persistence hooks plus implement-issue / run-epic / create-issue.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Taichi"
+      },
+      "source": "./plugins/workflow-grok"
+    },
+    {
+      "name": "obsidian-grok",
+      "description": "Write a session daily note to an Obsidian vault, then commit and push.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Taichi"
+      },
+      "source": "./plugins/obsidian-grok"
+    }
+  ]
+}

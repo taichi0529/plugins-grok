@@ -1,0 +1,16 @@
+# コミット前に秘匿情報・環境情報を検出する。
+#
+# 有効化 (clone 後に 1 回だけ必要。git hook はリポジトリに含まれないため):
+#   brew install pre-commit gitleaks
+#   pre-commit install
+#
+# 検出されたときは --no-verify で握り潰さず、必ず内容を直すこと。
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (detect secrets and local paths)
+        # --staged: ステージされた差分のみ走査 / --redact: 検出値をログに出さない
+        entry: gitleaks git --staged --redact --no-banner --verbose
+        language: system
+        pass_filenames: false
