@@ -4,7 +4,7 @@
 
 [Grok Build](https://x.ai) 用のプラグインマーケットプレイス。各プラグインは `plugins/<name>/` 配下にあり、使い方はそれぞれの README に記載している。
 
-Claude Code 用マーケットプレイス [plugins-cc](https://github.com/taichi0529/plugins-cc) の移植。Grok を Claude から呼ぶ `grok-cc` は、Grok 上では循環になるため含めていない。
+Claude Code 用マーケットプレイス [plugins-cc](https://github.com/taichi0529/plugins-cc) の移植。Grok を Claude から呼ぶ `grok-cc` は、Grok 上では循環になるため含めていない。代わりに逆方向の `codex-grok` と `claude-grok` がある。
 
 ## プラグイン一覧
 
@@ -12,6 +12,8 @@ Claude Code 用マーケットプレイス [plugins-cc](https://github.com/taich
 |---|---|---|
 | `workflow-grok` | PROGRESS.md 永続化フック (リポジトリごとのオプトイン) + issue 駆動開発のための `implement-issue` / `run-epic` / `create-issue` skill。 | [README](plugins/workflow-grok/README.md) |
 | `obsidian-grok` | セッションの作業内容を Obsidian vault のデイリーノートに日報として記録し、commit / push する `daily-report` skill。vault のパスは `/setup` で設定する。 | [README](plugins/obsidian-grok/README.md) |
+| `codex-grok` | Grok から Codex を呼び、レビューや rescue 委譲を行う。 | [README](plugins/codex-grok/README.md) |
+| `claude-grok` | Grok から Claude Code を呼び、レビューや rescue 委譲を行う。 | [README](plugins/claude-grok/README.md) |
 
 ## インストール
 
@@ -19,6 +21,8 @@ Claude Code 用マーケットプレイス [plugins-cc](https://github.com/taich
 grok plugin marketplace add taichi0529/plugins-grok
 grok plugin install workflow-grok --trust
 grok plugin install obsidian-grok --trust
+grok plugin install codex-grok --trust
+grok plugin install claude-grok --trust
 ```
 
 必要なもの・インストール後のセットアップは各プラグインの README を参照。

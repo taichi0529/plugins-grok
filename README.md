@@ -4,7 +4,7 @@
 
 A [Grok Build](https://x.ai) plugin marketplace. Each plugin lives under `plugins/<name>/` and documents its own usage in its README.
 
-Port of the Claude Code marketplace [plugins-cc](https://github.com/taichi0529/plugins-cc). The Grok-calling plugin (`grok-cc`) is not included — that would be circular on Grok.
+Port of the Claude Code marketplace [plugins-cc](https://github.com/taichi0529/plugins-cc). The Grok-calling plugin (`grok-cc`) is not included — that would be circular on Grok. The inverses are here instead: `codex-grok` and `claude-grok`.
 
 ## Plugins
 
@@ -12,6 +12,8 @@ Port of the Claude Code marketplace [plugins-cc](https://github.com/taichi0529/p
 |---|---|---|
 | `workflow-grok` | PROGRESS.md persistence hooks (opt-in per repository) plus `implement-issue` / `run-epic` / `create-issue` skills for issue-driven development. | [README](plugins/workflow-grok/README.md) |
 | `obsidian-grok` | Records what you did in a session into an Obsidian daily note, then commits and pushes it (`daily-report` skill). Vault paths are configured once via `/setup`. | [README](plugins/obsidian-grok/README.md) |
+| `codex-grok` | Call Codex from Grok for reviews and rescue-style task delegation. | [README](plugins/codex-grok/README.md) |
+| `claude-grok` | Call Claude Code from Grok for reviews and rescue-style task delegation. | [README](plugins/claude-grok/README.md) |
 
 ## Installation
 
@@ -19,6 +21,8 @@ Port of the Claude Code marketplace [plugins-cc](https://github.com/taichi0529/p
 grok plugin marketplace add taichi0529/plugins-grok
 grok plugin install workflow-grok --trust
 grok plugin install obsidian-grok --trust
+grok plugin install codex-grok --trust
+grok plugin install claude-grok --trust
 ```
 
 See each plugin's README for requirements and post-install setup.

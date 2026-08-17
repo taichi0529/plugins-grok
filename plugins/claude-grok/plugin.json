@@ -1,0 +1,8 @@
+{
+  "name": "claude-grok",
+  "version": "0.1.0",
+  "description": "Call Claude Code from Grok to review code or delegate tasks.",
+  "author": {
+    "name": "Taichi"
+  }
+}
