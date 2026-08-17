@@ -1,6 +1,6 @@
 {
   "name": "taichi0529",
-  "description": "Taichi's Grok plugins: issue-driven workflow and Obsidian daily notes.",
+  "description": "Taichi's Grok plugins: issue-driven workflow, Obsidian daily notes, and Codex/Claude companions.",
   "owner": {
     "name": "Taichi"
   },
@@ -22,6 +22,24 @@
         "name": "Taichi"
       },
       "source": "./plugins/obsidian-grok"
+    },
+    {
+      "name": "codex-grok",
+      "description": "Call Codex from Grok to review code or delegate tasks.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Taichi"
+      },
+      "source": "./plugins/codex-grok"
+    },
+    {
+      "name": "claude-grok",
+      "description": "Call Claude Code from Grok to review code or delegate tasks.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Taichi"
+      },
+      "source": "./plugins/claude-grok"
     }
   ]
 }

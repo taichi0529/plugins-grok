@@ -10,6 +10,8 @@
 |---|---|---|
 | `workflow-grok` | PROGRESS.md 永続化フック + create-issue / implement-issue / run-epic | `plugins/workflow-grok/AGENTS.md` |
 | `obsidian-grok` | セッション作業を Obsidian デイリーノートに記録して commit / push | `plugins/obsidian-grok/AGENTS.md` |
+| `codex-grok` | Codex CLI を Grok から呼ぶ companion (rescue / review / transfer) | `plugins/codex-grok/AGENTS.md` |
+| `claude-grok` | Claude Code CLI を Grok から呼ぶ companion (rescue / review / transfer) | `plugins/claude-grok/AGENTS.md` |
 
 個々のプラグインをいじるときは、その `AGENTS.md` を読む。この文書はマーケットプレイス共通事項だけを扱う。
 
@@ -44,6 +46,8 @@ plugins/<name>/
 grok plugin marketplace add taichi0529/plugins-grok
 grok plugin install workflow-grok --trust
 grok plugin install obsidian-grok --trust
+grok plugin install codex-grok --trust
+grok plugin install claude-grok --trust
 ```
 
 単一プラグインを直接入れる:

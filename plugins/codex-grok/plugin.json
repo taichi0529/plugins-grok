@@ -1,0 +1,8 @@
+{
+  "name": "codex-grok",
+  "version": "0.1.0",
+  "description": "Call Codex from Grok to review code or delegate tasks.",
+  "author": {
+    "name": "Taichi"
+  }
+}
