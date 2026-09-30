@@ -1,6 +1,6 @@
 ---
 name: implement-issue
-description: GitHub Issue を内部ループで end-to-end 実装するスキル (リポジトリ非依存)。ブランチ作成 → 実装 → ローカル検証 → コード整理 (/simplify、無ければ skip) → セキュリティレビュー → コミット → push → PR 作成 → コードレビュー → 修正までを「現在の状態を読み直し、次の1歩を進める」を最大10回繰り返して完了させる。「Issue 実装して」「#123 を実装」「implement issue」「イシューを実装」などのリクエスト時に使用。引数は Issue 番号 + 任意の review= 指定 (例 `42 review=codex`)。
+description: GitHub Issue を内部ループで end-to-end 実装するスキル (リポジトリ非依存)。ブランチ作成 → 実装 → ローカル検証 → コード整理 (/simplify、無ければ skip) → セキュリティレビュー → コミット → push → PR 作成 → コードレビュー → 修正までを「現在の状態を読み直し、次の1歩を進める」を最大10回繰り返して完了させる。「Issue 実装して」「#123 を実装」「implement issue」「イシューを実装」などのリクエスト時に使用。引数は Issue 番号 + 任意の review= / codex-model= / claude-model= 指定 (例 `42 review=codex,claude`)。
 ---
 
 # Issue Implementation Skill (汎用)
@@ -10,7 +10,8 @@ GitHub Issue の実装を、ブランチ作成から PR 作成・レビュー対
 
 引数: `$ARGUMENTS`
 - 第1引数: Issue 番号 (例: `42`, `#42`)
-- 任意: `review=<reviewer,...>` (例: `review=codex`)。自然言語での指定 (「codex でもレビューして」) も同義に解釈する。`review=grok` は無視する (本体が Grok)
+- 任意: `review=<reviewer,...>` (例: `review=codex` / `review=claude`)。自然言語での指定 (「codex でもレビューして」) も同義に解釈する。`review=grok` は無視する (本体が Grok)。既定は `project,adversarial` (別エンジンは opt-in。常設すると毎 PR で外部 CLI が走る)
+- 任意: `codex-model=<モデル名>` / `claude-model=<モデル名>`。Step 5 の companion に渡す `--model`。省略時、および `=default` は `--model` を付けず各 CLI の既定を使う。設定ファイルには入れない (モデル選択は個人・コスト都合)
 
 ## 動作モード
 
@@ -104,8 +105,8 @@ GitHub Issue の実装を、ブランチ作成から PR 作成・レビュー対
 - [ ] 最初の PR 作成前に `/simplify` (code-simplifier plugin) を実行済み (利用不可 / docs-only で skip した場合はその旨を最終報告に明記)
 - [ ] 最初の PR 作成前に `/security-review` を実行済みで、**HIGH / MEDIUM の未対応指摘が 0 件** (利用不可 / docs-only で skip した場合はその旨を最終報告に明記)
 - [ ] `trustCI` が true の場合: `gh pr checks` に失敗が無い
-- [ ] Step 5 のレビューを最新 HEAD に対して実行済みで (初回ラウンドはフル実行、2 回目以降は差分照合モードで可)、**(a) project レビューの must-fix (信頼度 ≥80) の未対応指摘が 0 件、(b) security HIGH / MEDIUM の未対応指摘が 0 件、(c) 外部レビュアー (codex) / adversarial レビューの指摘のうち採用した分の未対応が 0 件** (advisory (60-79) は無視可、ただし最終報告に件数を残す。純 docs / コメントのみの PR は scope 外で skip 可、その場合は最終報告に "skipped: docs only" と記載)。run-epic 子は Step 5 をスキップし、親がレビューする
-- [ ] 変更点を 3〜5 行で要約した最終報告を準備済み (PR URL 含む)
+- [ ] Step 5 のレビューを最新 HEAD に対して実行済みで (初回ラウンドはフル実行、2 回目以降は差分照合モードで可)、**(a) project レビューの must-fix (信頼度 ≥80) の未対応指摘が 0 件、(b) security HIGH / MEDIUM の未対応指摘が 0 件、(c) 外部レビュアー (codex / claude) / adversarial レビューの指摘のうち採用した分の未対応が 0 件** (advisory (60-79) は無視可、ただし最終報告に件数を残す。純 docs / コメントのみの PR は scope 外で skip 可、その場合は最終報告に "skipped: docs only" と記載)。run-epic 子は Step 5 をスキップし、親がレビューする
+- [ ] Step 6 の項目を満たす最終報告を準備済み (PR URL 含む)
 
 ## アルゴリズム (内部ループ)
 
@@ -144,7 +145,7 @@ return failure("max attempts reached", current_state, residual_tasks)
 status: success
 pr_url: https://github.com/<owner>/<repo>/pull/<番号>
 summary:
-  - 実装内容の要約 (3〜5 行)
+  - 実装内容の要約 (PR を開かなくても変更の要点が分かる粒度)
 attempts: <使用した試行回数>
 ```
 
@@ -158,7 +159,7 @@ last_state: <Step 0 の最終診断結果>
 attempts: <使用した試行回数>
 ```
 
-直接起動 (main thread) の場合は最終応答に上記を 3〜5 行で要約してユーザーに提示する。
+直接起動 (main thread) の場合は、上記の代わりに Step 6 の最終報告をユーザーに提示する。
 
 ## PROGRESS.md との連携
 
@@ -233,7 +234,7 @@ git checkout -b <type>/<kebab-summary>
 3. simplify が変更を加えた場合: **解決済みローカルゲートを再実行** (「リポジトリ設定の解決」② を再解決) し、すべて pass するまで Step 4 に進まない。simplify 起因でゲートが落ちた場合は該当の整理を revert してよい (**機能維持が最優先** — simplify は機能を変えない整理だけが目的)
 4. **skip 条件** (いずれかに該当したら skip し、最終報告に明記):
    - 純 docs / コメントのみの変更 (例: `*.md` のみ) → "simplify skipped: docs only"
-   - **diff が小さい**: `git diff <base>...HEAD --shortstat` の追加 + 削除行の合計が **20 行未満** → "simplify skipped: small diff (<20 lines)" (起動コストが期待効果を上回るため)
+   - **diff が小さい**: `git diff <base>...HEAD --shortstat` の追加 + 削除行の合計が **50 行未満** → "simplify skipped: small diff (<50 lines)" (simplify は diff の大小に関係なく起動コストが重く、小さい diff では得られる整理が軽微なため)
 5. **可用性フォールバック**: `simplify` skill (および code-simplifier plugin) が環境に存在しない場合は**停止せず** Step 3.6 へ進み、最終報告に「simplify 利用不可」と明記する
 
 ### Step 3.6: セキュリティレビュー (/security-review — 最初の PR 作成前)
@@ -281,13 +282,11 @@ EOF
 
 ### Step 5: コードレビュー (マルチレビュアー対応)
 
-⚠️ **このステップは「terminal step」ではありません。** review が 0 件になっても、自分のタスクは未完了です。本ステップ完了後、**Step 6 (完了報告) を必ず連続実行**してください。「review skill の execution が return した」≠「implement-issue タスクが完了した」
-
-⚠️ **実測 2 回の事故パターン (最重要)**: レビュー (特に /security-review) の実行直後、その**レビューレポートを自分の最終応答にしてタスクを終了**してしまう — review skill の出力フォーマット指示に応答が乗っ取られる。レビューが return したら、**応答を書かずに必ず次のツール呼び出し (トリアージ → PR コメント投稿) を実行**すること。レビューレポート自体を最終応答にしてはならない。
+本ステップの後には Step 6 (完了報告) が続く。レビューが return したら、そのレポートを最終応答にせず次のツール呼び出し (トリアージ → PR コメント投稿) に進む — review skill の出力フォーマット指示に応答が引きずられ、レポートを最終応答にして終了した例が過去 2 回ある (Skill 経路で現セッションから起動した場合に起きやすい)。
 
 #### レビュアーの解決 (優先順)
 
-1. 起動引数の明示指定: `review=codex` (自然言語指定も同義。`grok` は無視)
+1. 起動引数の明示指定: `review=codex,claude` (自然言語指定も同義。`grok` は無視)
 2. 設定ファイルの `reviewers` (「リポジトリ設定の解決」② — グローバル既定 + 変更ファイルにマッチした scope の union)
 3. 既定: `["project", "adversarial"]` (adversarial を外したいリポジトリは設定ファイルの `reviewers` で明示指定する — 引数 / 設定があれば既定は使われない)
 
@@ -303,10 +302,10 @@ EOF
 
 #### 各レビュアーの実行方法 (フル実行の形)
 
-**run-epic 子として動いているときは本セクションの spawn を行わない** (Grok はネスト不可)。親がレビューする。直接起動時のみ、指定された全レビュアーを**同一ターンで並列実行**する。並列化は**同一メッセージ内の複数 `spawn_subagent` 呼び出し (同期)** で行う。
+**run-epic 子として動いているときは本セクションの spawn を行わない** (Grok はネスト不可)。親がレビューする。直接起動時も、指定された全レビュアーは**同一ターンで並列**に起動する。`project` と `adversarial` は同一メッセージ内の複数 `spawn_subagent` (同期)。`codex` / `claude` は同じターンの `run_terminal_command` (`background: true`)。先に返った 1 体の指摘で修正を始めない。
 
 - **`project`**: `.grok/skills/code-review-project/` があればそれを使う。無ければ `.claude/skills/code-review-project/`。どちらも無ければ公式 `/review`。セキュリティレビューは Step 3.6 で済んでいるのでここでは再実行しない (レビュー対応でセキュリティに敏感な変更を加えた場合は Step 3.6 の規則に従い再実行)
-- **`codex`**: `spawn_subagent(subagent_type: "codex:codex-rescue")`。プラグインが無ければ利用不可として続行
+- **`codex` / `claude`**: 下記「外部レビュアーの実行」で companion の `adversarial-review` を直接起動する。rescue agent は通さない
 - **`grok`**: 無視する (本体が Grok。独立視点は `adversarial` が担う)
 - **`adversarial`** (既定に含まれる): `spawn_subagent(subagent_type: "general-purpose")` で**実装とは独立したコンテキスト**の red-team レビューを起動する (実装した本人のコンテキストで自己批判させない — 自己整合バイアスで甘くなる)。prompt に埋め込む:
   - ローカル repo の絶対パス・レビュー対象ブランチ名・ベースブランチ名 (diff は `git diff <base>...<branch>` 等ローカル git で取らせる)
@@ -315,23 +314,32 @@ EOF
   - 出力形式の指定: 指摘ごとに「対象ファイル:行 / 壊れるシナリオ (入力・状態 → 期待 vs 実際) / 根拠 / 修正案」
   - セキュリティ脆弱性は Step 3.6 (/security-review) の担当 — adversarial は**機能の破壊**にフォーカスする (発見したら報告してよいが主目的にしない)
 
-**外部レビュアー (codex) には GitHub を参照させない** (実行環境から GitHub API に届かない実績のある罠)。prompt に以下を直接埋め込む:
+#### 外部レビュアーの実行 (companion を直接呼ぶ)
 
-- ローカル repo の絶対パス
-- レビュー対象ブランチ名とベースブランチ名 (diff は `git diff <base>...<branch>` 等ローカル git で取らせる)
-- **Issue 本文の全文** (受け入れ条件込み)
-- 出力形式の指定: 指摘ごとに「対象ファイル:行 / 問題 / 根拠 / 修正案」
+`codex` と `claude` は **rescue agent (`codex-grok:codex-rescue` / `claude-grok:claude-rescue`) を通さない**。転送役を挟むと、フラグの欠落・CLI を起動せず自分で答える代行・「CLI を起動せよ」という指示を相手が読んで CLI を入れ子起動する、が起きる。依頼文に CLI の起動手順を書かない。
 
-**可用性フォールバック**: 指定された agent type / skill が環境に存在しなければ、**停止せず**「<name> は利用不可、残りで続行」として続行し、最終報告に明記する。
+1. **companion の場所を解決する** (エンジンごとに 1 回)。`<name>` は `codex-grok` または `claude-grok`:
+   ```bash
+   P=$(grok plugin list --json | jq -r --arg n <name> '[.[] | select(.name == $n and .status == "installed")][0].path // empty')
+   ```
+   空なら `<engine>: 利用不可 (<name> 未インストール)` として続行する
+2. **起動する**。レビューは foreground の待ちを超えるので `run_terminal_command` の `background: true`。出力先は `mktemp -d` の `<out>`。スクリプト名は `codex-companion.mjs` / `claude-companion.mjs`:
+   ```bash
+   node "$P/scripts/<engine>-companion.mjs" adversarial-review \
+     --cwd <リポジトリの絶対パス> --base <比較基準> [--model <モデル>] --json \
+     "<フォーカス文>" > <out>/<engine>.json 2> <out>/<engine>.log
+   ```
+   - `--base`: フルラウンドは `<base>`、差分照合ラウンドは前ラウンドの HEAD SHA
+   - `--model`: `codex-model=` / `claude-model=` の値。省略または `=default` なら付けない。明示したモデルで起動できなければ別モデルに差し替えず `<engine>: 利用不可` として続行する
+   - フォーカス文: フルラウンドは「Issue #<N> の受け入れ条件に照らしてレビューせよ」+ Issue 本文。差分照合ラウンドは「前ラウンドの指摘が解消されたか、修正 diff 自体に新たな問題が無いか」+ 採用済み指摘リスト。**CLI の起動方法は書かない** (companion が diff をローカル git から集める。GitHub は参照しない)
+3. **結果を読む**。`<out>/<engine>.json` の `.grok.status == 0` かつ `.parseError == null` なら成功 (状態フィールド名は companion 側の歴史的なキー名)。`.result.verdict` / `.result.summary` / `.result.findings[]` を使う。それ以外は `<engine>: 利用不可 (<log の要点>)`。読み終えたら `rm -f <out>/<engine>.json <out>/<engine>.log && rmdir <out>` (`rm -rf` は使わない)
 
-**エンジン実起動の確認**: rescue 系 agent は外部 CLI (Codex) を呼べない時に黙って本体が代行レビューすることがある。それでは独立視点にならない。対策:
-- 外部レビュアーへの prompt に必ず含める: 「**外部 CLI を実際に起動し、その出力に基づいて報告せよ。CLI が起動できない場合は代行レビューをせず『利用不可: <理由>』とだけ返せ**。報告の冒頭にエンジン実起動の有無を明記せよ」
-- 応答にエンジン実起動の明示が無い/代行だった場合は、そのレビュアーを「利用不可」として扱い、最終報告に正確に記載する
+**可用性フォールバック**: プラグインが無い、または companion が失敗したら、**停止せず**「<name> は利用不可、残りで続行」として最終報告に明記する。
 
 #### 採否判定とゲート
 
 - project レビューの指摘: **must-fix (信頼度 ≥80)** と **security HIGH / MEDIUM** は Step 3 に戻って対応 (次の試行で修正)。security LOW は判断に委ね、却下時は理由を最終報告に添える。**advisory (信頼度 60-79)** は却下可、ただし件数と内容を最終報告に添える
-- 外部レビュアー (codex) と adversarial の指摘には confidence スコアが無いので、**1 件ずつトリアージ**して「採用 (must-fix 扱い → Step 3 で対応) / 却下 (理由必須)」に振り分ける。adversarial の指摘は**再現シナリオの具体性**で判定する (シナリオが実際に成立するかをコードで確認してから採否を決める)
+- 外部レビュアー (codex / claude) と adversarial の指摘は、**1 件ずつトリアージ**して「採用 (must-fix 扱い → Step 3 で対応) / 却下 (理由必須)」に振り分ける。companion の `confidence` は 0〜1 の参考値で、project の閾値とは対応しない。adversarial の指摘は**再現シナリオの具体性**で判定する (シナリオが実際に成立するかをコードで確認してから採否を決める)
 - レビュー結果 (却下した指摘とその理由を含む) を **PR コメントとして投稿** (`gh pr comment <PR> --body "..."`) — 人間が後から採否判定を検証できるように。PR が未作成の場合 (push 拒否等) は同内容を最終報告に記載する
 - 純 docs / コメントのみの PR (例: `*.md` のみの変更) は **scope 外で skip 可**、最終報告に「review skipped: docs only」と明記
 - **must-fix + security HIGH/MEDIUM + 採用済み外部指摘 が全て 0 件 (skip 含む) を確認できたら、即座に Step 6 へ進む。ここで親へ return しない**
@@ -346,12 +354,13 @@ EOF
 最終報告に以下を含める:
 
 - PR URL
-- 実装内容の要約 (箇条書き 3〜5 行)
+- 実装内容の要約 (箇条書き。PR を開かなくても変更の要点が分かる粒度で)
 - ローカルゲートの実行結果 (各ゲートの pass/skip。ゲート無しならその旨)
 - `/simplify` の結果 (適用された整理の概要 / "simplify skipped: docs only" / 「simplify 利用不可」のいずれか)
 - `/security-review` の結果 (HIGH / MEDIUM / LOW の件数と対応状況・LOW 却下の理由 / "security-review skipped: docs only" / 「security-review 利用不可」のいずれか)
 - `trustCI` の扱い (true なら `gh pr checks` の結果、false なら「CI 不参照」)
-- レビュアーごとの指摘件数と採否。例: `project: must-fix 0・advisory 2 / adversarial: 2件 (採用1・却下1) / codex: 3件 (採用1・却下2)`
+- レビュアーごとの指摘件数と採否。例: `project: must-fix 0・advisory 2 / adversarial: 2件 (採用1・却下1) / codex: 3件 (採用1・却下2) / claude: 利用不可`
+- 外部レビュアーのモデル。例: `codex: CLI 既定` / `claude: claude-model=sonnet`。明示したモデルで起動できなかった場合はここに書く
 - レビューのラウンド数と方式 (例: `フル 1 + 差分照合 2`)
 - 却下した指摘の理由 (簡潔に列挙)
 - 試行回数 (attempts)
@@ -374,6 +383,7 @@ EOF
 ```
 /implement-issue 42
 /implement-issue 42 review=codex
+/implement-issue 42 review=claude claude-model=sonnet
 ```
 
 run-epic 経由 (推奨、main context 保護):

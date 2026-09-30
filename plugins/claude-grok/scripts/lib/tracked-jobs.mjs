@@ -99,14 +99,20 @@ export function createJobProgressUpdater(workspaceRoot, jobId) {
       return;
     }
 
-    upsertJob(workspaceRoot, patch);
-
     const jobFile = resolveJobFile(workspaceRoot, jobId);
-    if (!fs.existsSync(jobFile)) {
+    const storedJob = fs.existsSync(jobFile) ? readJobFile(jobFile) : null;
+    // Late progress from a run that is winding down after cancel must not
+    // overwrite the cancelled phase.
+    if (storedJob?.status === "cancelled") {
       return;
     }
 
-    const storedJob = readJobFile(jobFile);
+    upsertJob(workspaceRoot, patch);
+
+    if (!storedJob) {
+      return;
+    }
+
     writeJobFile(workspaceRoot, jobId, {
       ...storedJob,
       ...patch
@@ -139,6 +145,12 @@ function readStoredJobOrNull(workspaceRoot, jobId) {
   return readJobFile(jobFile);
 }
 
+// /claude-grok:cancel records the job as cancelled and signals this process; the run then
+// winds down on its own. Keep the cancelled record instead of overwriting it.
+function wasCancelled(job) {
+  return readStoredJobOrNull(job.workspaceRoot, job.id)?.status === "cancelled";
+}
+
 export async function runTrackedJob(job, runner, options = {}) {
   const runningRecord = {
     ...job,
@@ -153,6 +165,9 @@ export async function runTrackedJob(job, runner, options = {}) {
 
   try {
     const execution = await runner();
+    if (wasCancelled(job)) {
+      return execution;
+    }
     const completionStatus = execution.exitStatus === 0 ? "completed" : "failed";
     const completedAt = nowIso();
     writeJobFile(job.workspaceRoot, job.id, {
@@ -179,6 +194,9 @@ export async function runTrackedJob(job, runner, options = {}) {
     appendLogBlock(options.logFile ?? job.logFile ?? null, "Final output", execution.rendered);
     return execution;
   } catch (error) {
+    if (wasCancelled(job)) {
+      throw error;
+    }
     const errorMessage = error instanceof Error ? error.message : String(error);
     const existing = readStoredJobOrNull(job.workspaceRoot, job.id) ?? runningRecord;
     const completedAt = nowIso();

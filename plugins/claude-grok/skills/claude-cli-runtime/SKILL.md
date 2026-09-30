@@ -39,4 +39,4 @@ Safety rules:
 - Preserve the user's task text as-is apart from stripping routing flags.
 - Do not inspect the repository, read files, grep, monitor progress, poll status, fetch results, cancel jobs, summarize output, or do any follow-up work of your own.
 - Return the stdout of the `task` command exactly as-is.
-- If the shell call fails or Claude cannot be invoked, return nothing.
+- If the shell call fails or Claude cannot be invoked, return exactly one line: `Claude unavailable: <reason from stderr>`. Do not substitute your own answer; the caller needs to know Claude did not run.

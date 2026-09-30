@@ -32,10 +32,10 @@ plugins/<name>/
 
 ## 規約
 
-- **バージョンは 2 箇所を一致させる**: `plugins/<name>/plugin.json` と `marketplace.json` の該当エントリを同じ値にする
+- **バージョンは 2 箇所を一致させる**: `plugins/<name>/plugin.json` と `marketplace.json` の該当エントリを同じ値にする。`bash scripts/check-versions.sh` で全プラグインの一致を確認できる (不一致・片側欠落は exit 1。`--quiet` で OK / `--` 行を省略。NG は常に stderr)。`plugin.json` / `marketplace.json` を含むコミット (削除も含む) では pre-commit がステージ内容に対して自動で実行し、不一致ならコミットが止まる
 - **フックスクリプトはプラグインルート基準**: `hooks/hooks.json` の command は `"${GROK_PLUGIN_ROOT}"/scripts/...`
 - **stdin のフック JSON は camelCase** (`.toolInput`, `.stopHookActive`)。snake_case もフォールバックで読んでよい
-- **コミット前に gitleaks** (`.pre-commit-config.yaml` + `.gitleaks.toml`)。clone 後に 1 回 `pre-commit install`。依存は `brew install pre-commit gitleaks`
+- **コミット前に gitleaks** (`.pre-commit-config.yaml` + `.gitleaks.toml`)。clone 後に 1 回 `pre-commit install`。依存は `brew install pre-commit gitleaks jq` (jq は version 検査用)
 - **`.gitleaks.toml` に固有名詞を書かない**。allowlist は公開して問題ない例示値だけ
 - ビルド・テストランナーは無い。検証はプラグインごと (`bash -n`, `grok plugin validate`, helper を直接叩く)
 - ライセンス: Apache-2.0

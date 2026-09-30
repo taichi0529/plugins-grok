@@ -26,13 +26,14 @@ flowchart TD
     S35 --> S36["Step 3.6: セキュリティレビュー<br/>(/review + security-auditor、無ければ skip)"]
     S36 -- "HIGH / MEDIUM あり" --> S3
     S36 -- "0 件 (LOW は判断・却下理由を報告)" --> S4["Step 4: commit → push → PR 作成"]
-    S4 --> S5["Step 5: コードレビュー (PR 後)<br/>project / adversarial / 任意の codex"]
+    S4 --> S5["Step 5: コードレビュー (PR 後)<br/>project / adversarial / 任意の codex・claude"]
     S5 -- "must-fix / security / 採用した外部指摘あり" --> S3
     S5 -- "未対応 0 件" --> S6["Step 6: 完了報告"]
 ```
 
 - Step 3.5 / 3.6 は最初の PR 作成前だけ。docs-only や skill 不在は skip して最終報告に明記 (fail-open)
-- 既定レビュアーは `["project", "adversarial"]`。`review=grok` は廃止 (本体が Grok)
+- 既定レビュアーは `["project", "adversarial"]`。`review=grok` は廃止 (本体が Grok)。`review=codex` / `review=claude` は companion の `adversarial-review` を直接呼ぶ
+- `/simplify` は diff が 50 行未満なら skip
 - レビューは初回フル・2 回目以降は差分照合モード
 
 ## run-epic の実行フロー

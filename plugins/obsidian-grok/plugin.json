@@ -1,6 +1,6 @@
 {
   "name": "obsidian-grok",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Obsidian vault 連携 plugin: セッションの作業内容をデイリーノートに日報として記録し、commit / push する daily-report skill と設定用の setup skill。",
   "author": {
     "name": "Taichi"

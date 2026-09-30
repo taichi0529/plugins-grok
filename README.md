@@ -39,9 +39,11 @@ grok plugin install ./plugins-grok/plugins/<name> --trust
 Commits are scanned by [gitleaks](https://github.com/gitleaks/gitleaks) through a pre-commit hook. Git hooks are not part of a clone, so enable it once after cloning:
 
 ```bash
-brew install pre-commit gitleaks
+brew install pre-commit gitleaks jq
 pre-commit install
 ```
+
+`bash scripts/check-versions.sh` checks that each plugin's `plugin.json` version matches `.grok-plugin/marketplace.json`. The same check runs in the pre-commit hook when either file is staged (`--quiet` drops the OK lines; failures stay on stderr).
 
 On top of the default rules (API keys, tokens, private keys), `.gitleaks.toml` flags **local absolute paths** (`/Users/<name>/`, `/home/<name>/`) and **email addresses**. Use `/Users/you/`, `<name>`, and `example.com` in documentation; those are allowlisted. If the hook fires, fix the content rather than passing `--no-verify`.
 

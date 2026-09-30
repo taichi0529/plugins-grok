@@ -1,6 +1,6 @@
 {
   "name": "claude-grok",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Call Claude Code from Grok to review code or delegate tasks.",
   "author": {
     "name": "Taichi"

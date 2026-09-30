@@ -39,9 +39,11 @@ grok plugin install ./plugins-grok/plugins/<name> --trust
 コミット前に [gitleaks](https://github.com/gitleaks/gitleaks) が走る。git hook は clone に含まれないので、clone 後に 1 回だけ有効化する:
 
 ```bash
-brew install pre-commit gitleaks
+brew install pre-commit gitleaks jq
 pre-commit install
 ```
+
+`bash scripts/check-versions.sh` は `plugin.json` と `.grok-plugin/marketplace.json` の version が一致しているかを見る。どちらかをステージしたコミットでは pre-commit も同じ検査をする (`--quiet` は OK 行を省く。失敗は stderr)。
 
 既定ルール (API キー・トークン・秘密鍵) に加えて、`.gitleaks.toml` で**ローカル絶対パス** (`/Users/<name>/` `/home/<name>/`) と**メールアドレス**を検出する。ドキュメントの例示には `/Users/you/` `<name>` `example.com` を使うこと (allowlist 済み)。検出されたら `--no-verify` で回避せず内容を直す。
 

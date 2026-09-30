@@ -33,7 +33,7 @@ stdin は camelCase を正とし、snake_case はフォールバック。
 ## skills
 
 - `create-issue` — PBI 形式の Issue 起票。`templates/*.md` 同梱。DoD は `.grok/workflow-grok.json` の `dodFiles` → `.claude/workflow-cc.json` → `.grok/dod/*.md` → `.claude/dod/*.md` → 省略
-- `implement-issue` — Issue を内部ループ (最大 10 試行) で end-to-end 実装。**リポジトリ設定解決の正典**。既定レビュアーは `project` + `adversarial`。`review=grok` は廃止 (本体が Grok)
+- `implement-issue` — Issue を内部ループ (最大 10 試行) で end-to-end 実装。**リポジトリ設定解決の正典**。既定レビュアーは `project` + `adversarial`。`review=grok` は廃止 (本体が Grok)。`review=codex` / `review=claude` は companion の `adversarial-review` を直接起動する (rescue agent は通さない。依頼文に CLI 起動手順を書かない)。`/simplify` は diff 50 行未満なら skip
 - `run-epic` — EPIC の OPEN な Sub-issues を `spawn_subagent` (`isolation: worktree`) へ委譲。既定は直列。Grok はサブエージェントをネストできないので、**レビューは親が 1b のあとで回す**。子は実装 + ゲート + PR まで
 
 ## リポジトリ設定
