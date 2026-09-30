@@ -7,7 +7,7 @@ description: EPIC issue 番号を渡すと、その Sub-issues を GitHub API �
 
 EPIC issue にぶら下がる **Sub-issues を実装するオーケストレーター**。ローカルの todo ファイルではなく、**GitHub の Sub-issues API を唯一の作業リスト**として扱う。未クローズの子 issue を子エージェントへ委譲し、各 issue を「実装 → ローカルゲート pass → PR 作成」まで完走させる。
 
-実行順は**既定で直列** (従来互換)。`parallel=N` (N ≥ 2) を指定したときだけ、「独立性トリアージ」(後述) で機械的に独立と判定できた子 issue を同一バッチで並列実行する。
+実行順は**既定で直列**。`parallel=N` (N ≥ 2) を指定したときだけ、「独立性トリアージ」(後述) で機械的に独立と判定できた子 issue を同一バッチで並列実行する。
 
 > 進捗管理は GitHub の Sub-issues 機能が自動で行う (親 EPIC の進捗バー)。PR が merge され子 issue が close されると進捗バーが自動更新される。本スキルはローカル todo ファイルを持たない。
 
@@ -15,14 +15,15 @@ EPIC issue にぶら下がる **Sub-issues を実装するオーケストレー�
 
 - 第 1 トークン: EPIC の issue 番号 (例: `252`, `#252`)
 - 任意: `parallel=<正の整数>` (例: `252 parallel=2`)。自然言語での指定 (「2 並列で」) も同義に解釈する
-  - 省略時は `parallel=1` (= 従来どおりの直列実行。トリアージをスキップし、処理順・停止動作・検証は 0.4.x と同一。0.5.0 での変更は「ブランチ名を親が割り当てる」点と「検証 NG PR の再分類」のみ)
+  - 省略時は `parallel=1` (= 直列実行。独立性トリアージはスキップする)
   - 0 以下・非数値が指定された場合は実行せずエラーを報告して停止
   - 推奨上限は 3 (子 1 体 = implement-issue 最大 10 試行 + レビューで重い。コストとマシン負荷に注意)
 - 任意: `model=<モデル名>` (例: `252 model=grok-4`)。自然言語での指定 (「子はこのモデルで」) も同義に解釈する。`parallel=` と順不同で併用可
-  - **子エージェント (implement-issue 実行体) の spawn にだけ適用する**。親自身・1b 検証・外部レビュアー (codex / grok = 外部 CLI 側のモデル) には影響しない
-  - 省略時は指定なし = 子はセッションモデルを継承 (従来どおり)
+  - **子エージェント (implement-issue 実行体) の spawn にだけ適用する**。親自身・1b 検証・外部レビュアー (codex / claude) には影響しない
+  - 省略時は指定なし = 子はセッションモデルを継承
   - 値の allowlist は SKILL 側に持たない (利用可能なモデル名は harness 側の事実で環境ごとに変わる)。値が空なら実行せずエラーを報告して停止。spawn が拒否された場合は**別モデルへフォールバックせず**「model=<値> が環境で利用不可」として停止・報告する
   - 設定ファイルには入れない — `parallel` と同じ理由 (モデル選択は個人・コスト都合)
+- 任意: `codex-model=<モデル名>` / `claude-model=<モデル名>`。親が 1b のあとで回す Step 5 の companion に渡す。子 prompt には埋め込まない (子はレビューしない)。解釈は implement-issue の引数説明が正。省略時は各 CLI の既定
 
 ## リポジトリ設定の解決 (起動時に 1 回)
 
@@ -50,7 +51,7 @@ implement-issue skill の「リポジトリ設定の解決」(正典) と同じ�
 
 ## 独立性トリアージと wave 分割 (parallel ≥ 2 のときだけ実行)
 
-`parallel=1` (既定) では本セクションを**丸ごとスキップ**し、従来どおり Sub-issues API 順の直列実行とする (現行互換の回帰条件)。
+`parallel=1` (既定) では本セクションを**丸ごとスキップ**し、Sub-issues API 順の直列実行とする。
 
 ### 依存とスコープの機械解析 (LLM による内容予測は行わない)
 
@@ -100,11 +101,11 @@ for issue in ready_set (API 順):
 
 - **worktree 子は PROGRESS.md に一切触れない** (作成も更新もしない)。PROGRESS.md は gitignored のため worktree には存在せず、フックも発火しない — この分離は設計であり、崩さない (単一状態ファイルへの並行書き込みは conflict の温床)
 - **main checkout 直列で動かす子は例外**: PROGRESS.md が存在するためフック (コミット / PR 作成検知) が発火する。子には「フックの更新要求には素直に従う」を指示する (直列なので競合しない)
-- **親 (このセッション) が集約する**: バッチ完了 (= バッチ内全子の 1b 検証。parallel=1 なら従来どおり子 1 件) ごとに、リポジトリルートに PROGRESS.md が存在すれば「現在地」を上書き (処理中の EPIC / 完了済み子 / 残りバッチ / 次の一手) し、「ログ」に子ごとの結果 1 エントリ (PR 番号・plan差分・子が報告した想定外) を追記する
+- **親 (このセッション) が集約する**: バッチ完了 (= バッチ内全子の 1b 検証。parallel=1 なら子 1 件) ごとに、リポジトリルートに PROGRESS.md が存在すれば「現在地」を上書き (処理中の EPIC / 完了済み子 / 残りバッチ / 次の一手) し、「ログ」に子ごとの結果 1 エントリ (PR 番号・plan差分・子が報告した想定外) を追記する
 
 ## あなた (オーケストレーター親) のタスク
 
-引数の EPIC 番号の Sub-issues のうち **OPEN な子 issue** を、Sub-issues API が返す順 (= 追加順 = 通常は優先度順) を基本にバッチへ分割し (`parallel=1` なら 1 件 = 1 バッチで従来の直列と同一)、バッチ単位で子エージェントに委譲して ready な全子 issue の PR 作成まで実行する。
+引数の EPIC 番号の Sub-issues のうち **OPEN な子 issue** を、Sub-issues API が返す順 (= 追加順 = 通常は優先度順) を基本にバッチへ分割し (`parallel=1` なら 1 件 = 1 バッチ)、バッチ単位で子エージェントに委譲して ready な全子 issue の PR 作成まで実行する。
 
 ## 成功条件 (全部満たしたら完了)
 
@@ -141,7 +142,7 @@ for issue in ready_set (API 順):
 
 ### Step 1: バッチを順に処理
 
-ready-set のバッチ列 (`parallel=1` なら「OPEN 子 issue 1 件 = 1 バッチ」の従来形) を先頭から取り出して、以下を繰り返す:
+ready-set のバッチ列 (`parallel=1` なら「OPEN 子 issue 1 件 = 1 バッチ」) を先頭から取り出して、以下を繰り返す:
 
 #### 1a. 子エージェント spawn (バッチ単位)
 
@@ -164,12 +165,12 @@ spawn 前にバッチ共通の準備を親が行う:
 あなたはこのリポジトリの実装エージェントです。
 GitHub Issue #<N> を実装し、PR 作成 → ローカルゲート pass まで完走させて、親に構造化結果を返してください。
 
-## ⚠️⚠️ 絶対遵守の終了条件 ⚠️⚠️
+## 終了条件
 
-親への return は**以下 2 条件すべて**を確認した後だけです:
+親への return は、Phase B で次の 2 点を実 shell で確認した後にしてください (親はこの結果を再検証し、未確認の success は差し戻されます):
 
-1. `gh pr list --head <branch> --json number,url,state` で PR が **OPEN** 状態で存在すること
-2. ローカルゲート (implement-issue SKILL.md の解決規則で決まったもの) が全て pass していること
+1. `gh pr list --head <branch> --json number,url,state` で PR が OPEN 状態で存在する
+2. ローカルゲート (implement-issue SKILL.md の解決規則で決まったもの) が全て pass している
 
 **レビュー (Step 5 / spawn_subagent / /review) は行わない。** Grok はサブエージェントをネストできない。レビューは親が行う。
 
@@ -196,17 +197,17 @@ GitHub Issue #<N> を実装し、PR 作成 → ローカルゲート pass まで
    - リポジトリの AGENTS.md / CLAUDE.md / .grok/rules/ / .claude/rules/ を必ず読んで従う
    - PR 本文には `Closes #<N>` を含め、merge 時に Sub-issue が自動 close → EPIC 進捗バーが進むようにする
    - Step 5 (レビュー spawn) はスキップする。simplify / security-review は環境にあれば実行してよい (skill 呼び出しであり spawn ではない)。無ければ skip して報告
-   - **重要**: implement-issue が "success" 相当になっても Phase B を続行する
+   - implement-issue が "success" 相当になったら Phase B に進む
    - max_attempts に達したら failure を返す
 
 **Phase B — PR 状態確認 + 自己診断 (Phase A 完了後に必ず連続実行)**
 
 3. `gh pr list --head <branch> --json number,url,state,headRefName` で PR を取得。存在しない or CLOSED/MERGED なら failure
 4. ローカルゲートの最終確認: 現在の `git rev-parse HEAD` が**最後に全ゲート pass した時点の記録 SHA と同一**、かつ `git status --porcelain` が空なら、再実行を **skip** して「SHA 一致 (<SHA>) により再実行省略」を合格証拠として親への報告に含める。SHA 不一致 / working tree が dirty なら解決済みゲートを全て再実行。いずれかが失敗したら failure
-5. **最終自己診断 (絶対省略禁止、親へ return する直前に必ず実行)**:
-   - `gh pr list --head <branch> --json number,url,state` を実 shell 実行 → PR が OPEN であることを目視確認
+5. 最終自己診断 (親へ return する直前):
+   - `gh pr list --head <branch> --json number,url,state` を実 shell 実行 → PR が OPEN であることを確認
    - ローカルゲートの合格を確認 (4 の再実行結果、または SHA 一致による省略)
-   - **両方確認できないうちは絶対に親に return しない**
+   - 両方確認できるまで return しない
 
 **Phase C — 親への構造化応答 (上記 5 を pass した後にだけ実行)**
 
@@ -218,14 +219,14 @@ GitHub Issue #<N> を実装し、PR 作成 → ローカルゲート pass まで
    - implement-issue が消費した試行回数 (attempts)
    - 想定外があれば 1-2 行
 
-ローカルゲート失敗 / max_attempts 到達 / その他停止すべき問題に遭遇したら、即座に親に "failure: <理由>" で返してください。リトライや回避策は子側で行わず、親が判断します。
+Phase B のゲート失敗 / max_attempts 到達 / その他停止すべき問題 (permission 拒否等) に遭遇したら、親に "failure: <理由>" で返してください。Phase A 中のゲート失敗は implement-issue の内部ループ (Step 3 での修正) で扱い、それ以外のリトライや回避策は子側で行わず親が判断します。
 
-⚠️ **誤りパターン**: Phase B を skip して「success」を返す。PR OPEN とゲート合格を実 shell で確認してから return すること。
+Phase B を skip して「success」を返さないでください。PR OPEN とゲート合格を実 shell で確認してから return します。
 ```
 
 #### 1b. 子の戻り値を**親側で検証** (子の success 文字列を信用しない)
 
-⚠️ **繰り返し発生する事故パターン**: 子がレビュー 0 件で return した直後に Phase B (PR 状態確認) を skip して「success」と称して親に return する。**親側で必ず実 shell 検証**する。
+子が Phase B (PR 状態確認) を skip して「success」と称して return した例がある。親側で必ず実 shell 検証する。
 
 **バッチの全子が return してから、1 件ずつ直列に検証する** (検証を並列にしない — 親 cwd と一時 worktree の操作が競合するため)。
 
@@ -251,7 +252,7 @@ GitHub Issue #<N> を実装し、PR 作成 → ローカルゲート pass まで
   - **再検証も NG なら、ユーザーに「Issue #<N> で子が Phase B を完走できず手動介入要」と報告して停止** (再度 resume はせず、ループを避ける)
 - **検証 NG で PR 不在 or 子が `status: "failure"` を明示** → 親側で停止:
   - EPIC / 子 issue の状態は変更しない (該当 Sub-issue は OPEN のまま残す)
-  - **同一バッチで既に return している他の子の検証・記録 (1b〜1c) は完了させる** (並列時に他の子の成果を放置しない)。その後、**新しいバッチ / wave は開始せず**停止する (`parallel=1` では従来の即停止と同じ)
+  - **同一バッチで既に return している他の子の検証・記録 (1b〜1c) は完了させる** (並列時に他の子の成果を放置しない)。その後、**新しいバッチ / wave は開始せず**停止する (`parallel=1` ではそのまま即停止)
   - ユーザーに「EPIC #$ARGUMENTS を Sub-issue #<N> で停止: <検証結果 + 失敗理由>」+ PR URL (あれば) + 試行回数 + 想定外メモ + バッチ内他子の結果 を報告
   - スキルを終了
 
@@ -312,14 +313,14 @@ ready-set のバッチ列を処理し切ったら:
    - 全 PR URL (merge 待ちリスト、対応する `Closes #<N>` 付き)
    - **merge についての案内**: 「各 PR をレビュー後に手動で merge してください。merge すると `Closes #<N>` で Sub-issue が close され、EPIC の進捗バーが自動で進みます」
    - trustCI の扱い (true なら各 PR の checks 状態、false なら「CI 不参照」)
-   - 想定外があれば 3〜5 行
+   - 想定外があれば、ユーザーが次に判断すべき点が分かるように
 
 ## 厳守事項
 
 - **ローカルゲート失敗時は必ず停止**: 子が `failure` を返したら新しいバッチを開始しない (同一バッチの in-flight の検証・記録は完了させる)。ユーザーが介入してから手動で再起動 (`/run-epic $ARGUMENTS` を再実行すれば、未処理 (OPEN かつ verified-ready な PR を持たない) の Sub-issue から再開する)
 - **自動 merge / 自動 close は行わない**: merge は人間が判断する。本スキルは PR 作成までを担当
 - **子は原則 `isolation: "worktree"`**: 親の cwd を汚さない、作業空間を分離。ただし「実行方式の決定」の判定で worktree が成立しない環境では main checkout 直列に切り替え、最終報告に明記
-- **既定は直列**: `parallel` 未指定 (= 1) では並列 spawn しない (従来互換)。`parallel ≥ 2` でも並列にできるのは**同一バッチ内の「並列可」判定済みの子だけ**。バッチ上限 `parallel` を超えない・main checkout モードでは並列しない・親の 1b 検証は常に直列
+- **既定は直列**: `parallel` 未指定 (= 1) では並列 spawn しない。`parallel ≥ 2` でも並列にできるのは**同一バッチ内の「並列可」判定済みの子だけ**。バッチ上限 `parallel` を超えない・main checkout モードでは並列しない・親の 1b 検証は常に直列
 - **worktree 子は PROGRESS.md に触れない** (D11)。進捗集約は親のみが行う (main checkout 子はフック要求への追従のみ可)
 - **EPIC / Sub-issue の close は親が手動でやらない**: PR merge 時の `Closes #<N>` に任せる
 - **保護ブランチ直 push 禁止**: 各子は feature ブランチで PR 経由
@@ -328,7 +329,7 @@ ready-set のバッチ列を処理し切ったら:
 
 ## 既知の Gotcha
 
-- `sub_issues` API はプレビュー扱いの時期があった。`gh api /repos/<owner>/<repo>/issues/<EPIC>/sub_issues` が 404/空配列を返す場合は、EPIC に子が紐づいていないか API 未対応の可能性 → ユーザーに確認
+- `gh api /repos/<owner>/<repo>/issues/<EPIC>/sub_issues` が 404/空配列を返す場合は、EPIC に子が紐づいていない (または GHES 等で Sub-issues が無効) 可能性がある → ユーザーに確認
 - リポジトリ固有の Gotcha は本スキルには書かない。**各リポジトリの AGENTS.md / CLAUDE.md の管轄** (子が読む)
 
 ## 参照ドキュメント (実装中に必要に応じて読む)

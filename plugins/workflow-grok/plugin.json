@@ -1,7 +1,7 @@
 {
   "name": "workflow-grok",
   "description": "PROGRESS.md 永続化フック (opt-in: リポジトリルートに PROGRESS.md がある時だけ動く) + implement-issue / run-epic / create-issue skill。",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Taichi"
   }
